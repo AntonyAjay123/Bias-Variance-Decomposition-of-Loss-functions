@@ -28,8 +28,9 @@ from scipy.stats import mode
 # In[5]:
 
 
-def train_model(train_data_list,loss_fn,lr,model_class,model_kwargs,num_models,X_test,max_epochs,save_path,device,batch_size,patience=10,task='regression'):
+def train_model(train_data_list,loss_fn,lr,model_class,model_kwargs,num_models,X_test,max_epochs,device,batch_size,patience=10,task='regression'):
     all_preds=[]
+    print(f"Starting experiment with {num_models} models...")
     for i, train_data in enumerate(train_data_list):
         print(f'\n--- Training Model {i+1}/{num_models} ---')
 
@@ -181,80 +182,79 @@ def estimate_bias_variance(model_class, X_train, y_train, X_test, y_test, loss_f
     # Create num_models bootstrapped training sets
     train_data_list = [resample(X_train, y_train, replace=True) for _ in range(num_models)]
 
-    print(f"Starting experiment with {num_models} models...")
+    # for i, train_data in enumerate(train_data_list):
+    #     print(f'\n--- Training Model {i+1}/{num_models} ---')
 
-    for i, train_data in enumerate(train_data_list):
-        print(f'\n--- Training Model {i+1}/{num_models} ---')
+    #     X_train_resampled = train_data[0]
+    #     y_train_resampled = train_data[1]
 
-        X_train_resampled = train_data[0]
-        y_train_resampled = train_data[1]
+    #     # Split the resampled data into training and validation sets for early stopping
+    #     X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(
+    #         X_train_resampled, y_train_resampled, test_size=0.2, random_state=42
+    #     )
 
-        # Split the resampled data into training and validation sets for early stopping
-        X_train_split, X_val_split, y_train_split, y_val_split = train_test_split(
-            X_train_resampled, y_train_resampled, test_size=0.2, random_state=42
-        )
+    #     ## Creating tensors for the train and validation data
+    #     X_train_tensor = torch.tensor(X_train_split, dtype=torch.float32).to(device)
+    #     y_train_tensor = torch.tensor(y_train_split, dtype=torch.float32).view(-1, 1).to(device)
+    #     X_val_tensor = torch.tensor(X_val_split, dtype=torch.float32).to(device)
+    #     y_val_tensor = torch.tensor(y_val_split, dtype=torch.float32).view(-1, 1).to(device)
+    #     X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
 
-        ## Creating tensors for the train and validation data
-        X_train_tensor = torch.tensor(X_train_split, dtype=torch.float32).to(device)
-        y_train_tensor = torch.tensor(y_train_split, dtype=torch.float32).view(-1, 1).to(device)
-        X_val_tensor = torch.tensor(X_val_split, dtype=torch.float32).to(device)
-        y_val_tensor = torch.tensor(y_val_split, dtype=torch.float32).view(-1, 1).to(device)
-        X_test_tensor = torch.tensor(X_test, dtype=torch.float32).to(device)
+    #     ## Data Loaders
+    #     train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    #     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 
-        ## Data Loaders
-        train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    #     ## Model initialization
+    #     model = model_class(**model_kwargs).to(device)
+    #     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-        ## Model initialization
-        model = model_class(**model_kwargs).to(device)
-        optimizer = optim.Adam(model.parameters(), lr=lr)
+    #     # Early stopping setup
+    #     best_val_loss = float('inf')
+    #     patience_counter = 0
 
-        # Early stopping setup
-        best_val_loss = float('inf')
-        patience_counter = 0
-
-        # Model Training loop with early stopping
-        for epoch in range(max_epochs):
-            model.train()
-            epoch_loss = 0.0
-            for x, y in train_loader:
-                optimizer.zero_grad()
-                output = model(x)
-                loss = loss_fn(output, y)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item() * x.size(0)
+    #     # Model Training loop with early stopping
+    #     for epoch in range(max_epochs):
+    #         model.train()
+    #         epoch_loss = 0.0
+    #         for x, y in train_loader:
+    #             optimizer.zero_grad()
+    #             output = model(x)
+    #             loss = loss_fn(output, y)
+    #             loss.backward()
+    #             optimizer.step()
+    #             epoch_loss += loss.item() * x.size(0)
             
-            # Validation step
-            model.eval()
-            with torch.no_grad():
-                val_output = model(X_val_tensor)
-                val_loss = loss_fn(val_output, y_val_tensor)
+    #         # Validation step
+    #         model.eval()
+    #         with torch.no_grad():
+    #             val_output = model(X_val_tensor)
+    #             val_loss = loss_fn(val_output, y_val_tensor)
             
-            print(f'Epoch {epoch+1}/{max_epochs}, Avg Train Loss: {epoch_loss/len(train_dataset):.4f}, Val Loss: {val_loss.item():.4f}')
+    #         print(f'Epoch {epoch+1}/{max_epochs}, Avg Train Loss: {epoch_loss/len(train_dataset):.4f}, Val Loss: {val_loss.item():.4f}')
 
-            # Early stopping check
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                patience_counter = 0
-                torch.save(model.state_dict(), 'best_model.pt') # Save the best model
-            else:
-                patience_counter += 1
+    #         # Early stopping check
+    #         if val_loss < best_val_loss:
+    #             best_val_loss = val_loss
+    #             patience_counter = 0
+    #             torch.save(model.state_dict(), 'best_model.pt') # Save the best model
+    #         else:
+    #             patience_counter += 1
             
-            if patience_counter >= patience:
-                print(f"Early stopping triggered after {epoch+1} epochs.")
-                break
+    #         if patience_counter >= patience:
+    #             print(f"Early stopping triggered after {epoch+1} epochs.")
+    #             break
 
-        # Load the best model to use for prediction
-        model.load_state_dict(torch.load('best_model.pt'))
+    #     # Load the best model to use for prediction
+    #     model.load_state_dict(torch.load('best_model.pt'))
 
-        ## Model evaluation
-        model.eval()
-        with torch.no_grad():
-            preds = model(X_test_tensor).cpu().numpy()
-            all_preds.append(preds)
+    #     ## Model evaluation
+    #     model.eval()
+    #     with torch.no_grad():
+    #         preds = model(X_test_tensor).cpu().numpy()
+    #         all_preds.append(preds)
     
     # Continue with your existing calculations
+    all_preds=train_model(train_data_list,loss_fn,lr,model_class,model_kwargs,num_models,X_test,max_epochs,device,batch_size,patience,task='regression')
     all_preds_np = np.stack(all_preds, axis=0).squeeze()
     y_test = y_test.reshape(-1, 1)
 
@@ -297,7 +297,7 @@ def get_bias_variance_0_1(model_class,loss_fn, X_train, y_train, X_test, y_test,
                               num_models=20, max_epochs=100, patience=10,
                               batch_size=64, lr=0.001, device='cpu', save_path='best_model.pt'):
     train_data_list= [resample(X_train,y_train,replace=True) for _ in range(num_models)]
-    all_preds = train_model(train_data_list,loss_fn,lr,model_class,model_kwargs,num_models,X_test,max_epochs,save_path,device,batch_size,patience,task='classification')
+    all_preds = train_model(train_data_list,loss_fn,lr,model_class,model_kwargs,num_models,X_test,max_epochs,device,batch_size,patience,task='classification')
 
     # Convert to (num_runs, num_test_samples)
     all_preds = np.stack(all_preds, axis=0)
